@@ -4,50 +4,50 @@ package com.khasang.russiaworldcup2018.rss;
  * Created by aleksandrlihovidov on 18.07.16.
  */
 public class RSSItem {
-    private String mTitle;
-    private String mLink;
-    private String mDescription;
-    private String mImageUrl;
+    private String title;
+    private String link;
+    private String description;
+    private String imageUrl;
 
     public String getTitle() {
-        return mTitle;
+        return title;
     }
 
     public void setTitle(String title) {
-        mTitle = title;
+        this.title = title;
     }
 
     public String getLink() {
-        return mLink;
+        return link;
     }
 
     public void setLink(String link) {
-        mLink = link;
+        this.link = link;
     }
 
     public String getDescription() {
-        return mDescription;
+        return description;
     }
 
     public void setDescription(String description) {
-        mDescription = description;
+        this.description = description;
     }
 
     public String getImageUrl() {
-        return mImageUrl;
+        return imageUrl;
     }
 
     public void setImageUrl(String mImageUrl) {
-        this.mImageUrl = mImageUrl;
+        this.imageUrl = mImageUrl;
     }
 
     @Override
     public String toString() {
         return "RSSItem{" +
-                "mTitle='" + mTitle + "\'" +
-                ",\nmLink='" + mLink + "\'" +
-                ",\nmDescription='" + mDescription + "\'" +
-                ",\nmImageUrl='" + mImageUrl + "\'" +
+                "title='" + title + "\'" +
+                ",\nlink='" + link + "\'" +
+                ",\ndescription='" + description + "\'" +
+                ",\nimageUrl='" + imageUrl + "\'" +
                 "}\n";
     }
 }
