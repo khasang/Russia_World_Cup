@@ -1,18 +1,25 @@
 package com.khasang.russiaworldcup2018.rss;
 
+import android.graphics.Bitmap;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.annotation.Nullable;
-import android.support.v7.app.AppCompatActivity;
+import android.support.v4.app.Fragment;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.khasang.russiaworldcup2018.R;
+import com.khasang.russiaworldcup2018.ThumbnailDownloader;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserFactory;
@@ -20,14 +27,15 @@ import org.xmlpull.v1.XmlPullParserFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 
 /**
- * Created by aleksandrlihovidov on 18.07.16.
+ * Created by aleksandrlihovidov on 20.07.16.
  */
-public class RSSActivity extends AppCompatActivity {
-    private static final String TAG = "RSSActivity";
+public class RSSFragment extends Fragment {
+    private static final String TAG = "RSSFragment";
 
     private String finalUrl="http://www.fifa.com/worldcup/news/rss.xml";//http://www.fifa.com/rss/index.xml";
 
@@ -35,17 +43,55 @@ public class RSSActivity extends AppCompatActivity {
     private RecyclerView recycler;
     private RSSItemListAdapter adapter;
 
-    @Override
-    protected void onCreate(@Nullable Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    private ThumbnailDownloader<RSSItemHolder> thumbnailDownloader;
 
-        setContentView(R.layout.activity_rss);
-        recycler = (RecyclerView) findViewById(R.id.recycler);
-        recycler.setLayoutManager(new GridLayoutManager(this, 2, GridLayoutManager.VERTICAL, false));
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setRetainInstance(true);
+
+        new HandleAsyncTask().execute(finalUrl);
+
+        Handler responseHandler = new Handler();
+        thumbnailDownloader = new ThumbnailDownloader<>(responseHandler);
+        thumbnailDownloader.setThumbnailDownloaderListener(
+                new ThumbnailDownloader.ThumbnailDownloaderListener<RSSItemHolder>() {
+            @Override
+            public void onThumbnailDownloaded(RSSItemHolder rssItemHolder, Bitmap thumbnail) {
+                Drawable drawable = new BitmapDrawable(getResources(), thumbnail);
+                rssItemHolder.rssImageView.setImageDrawable(drawable);
+            }
+        });
+        thumbnailDownloader.start();
+        thumbnailDownloader.getLooper();
+        Log.i(TAG, "onCreate: background thread started");
+    }
+
+    @Nullable
+    @Override
+    public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+
+        View view = inflater.inflate(R.layout.fragment_rss, container, false);
+
+        recycler = (RecyclerView) view.findViewById(R.id.recycler);
+        recycler.setLayoutManager(new GridLayoutManager(getActivity(), 2, GridLayoutManager.VERTICAL, false));
         adapter = new RSSItemListAdapter();
         recycler.setAdapter(adapter);
 
-        new HandleAsyncTask().execute(finalUrl);
+        return view;
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        thumbnailDownloader.clearQueue();
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        thumbnailDownloader.quit();
+        Log.i(TAG, "onDestroy: background thread destroyed");
     }
 
     private class HandleAsyncTask extends AsyncTask<String, Void, Void> {
@@ -78,7 +124,7 @@ public class RSSActivity extends AppCompatActivity {
                 obj = new HandleXML(rssItems);
                 obj.parseXMLDocumentWith(myParser);
             } catch (Exception e) {
-                Toast.makeText(RSSActivity.this, e.getMessage(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(getActivity(), e.getMessage(), Toast.LENGTH_SHORT).show();
             }finally {
                 try {
                     if (stream != null) {
@@ -102,8 +148,8 @@ public class RSSActivity extends AppCompatActivity {
 
         @Override
         public RSSItemHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-            LayoutInflater layoutInflater = LayoutInflater.from(RSSActivity.this);
-            View view = layoutInflater.inflate(android.R.layout.simple_list_item_1, parent, false);
+            LayoutInflater layoutInflater = LayoutInflater.from(getActivity());
+            View view = layoutInflater.inflate(R.layout.rss_list_item, parent, false);
             return new RSSItemHolder(view);
         }
 
@@ -111,6 +157,16 @@ public class RSSActivity extends AppCompatActivity {
         public void onBindViewHolder(RSSItemHolder holder, int position) {
             RSSItem item = rssItems.get(position);
             holder.titleTextView.setText(item.getTitle());
+            if (item.getImageUrl() == null || item.getImageUrl().isEmpty()) {
+                holder.rssImageView.setImageResource(R.mipmap.ic_launcher);
+            } else {
+                try {
+                    URL url = new URL(item.getImageUrl());
+                    thumbnailDownloader.queueThumbnail(holder, item.getImageUrl());
+                } catch (MalformedURLException e) {
+                    holder.rssImageView.setImageResource(R.mipmap.ic_launcher);
+                }
+            }
         }
 
         @Override
@@ -120,11 +176,13 @@ public class RSSActivity extends AppCompatActivity {
     }
 
     private class RSSItemHolder extends RecyclerView.ViewHolder{
+        ImageView rssImageView;
         TextView titleTextView;
 
         public RSSItemHolder(View itemView) {
             super(itemView);
-            titleTextView = (TextView) itemView;
+            rssImageView = (ImageView) itemView.findViewById(R.id.image_view_rss_item);
+            titleTextView = (TextView) itemView.findViewById(R.id.text_view_rss_item);
         }
     }
 }
